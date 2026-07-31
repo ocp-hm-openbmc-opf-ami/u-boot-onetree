@@ -63,6 +63,11 @@
  * old entries may be missing 4K flag.
  */
 const struct flash_info spi_nor_ids[] = {
+#ifdef CONFIG_SPI_FLASH_GOOGLE		/* GOOGLE */
+	{INFO("hoth-512",	0x260217, 0x0, 64 * 1024,   512, SECT_4K) },
+	{INFO("hoth-1024",	0x26021a, 0x0, 64 * 1024,  1024, SECT_4K) },
+	{INFO("hoth2-1024",	0x26221a, 0x0, 64 * 1024,  1024, SECT_4K) },
+#endif
 #ifdef CONFIG_SPI_FLASH_ATMEL		/* ATMEL */
 	/* Atmel -- some are (confusingly) marketed as "DataFlash" */
 	{ INFO("at26df321",	0x1f4700, 0, 64 * 1024, 64, SECT_4K) },
@@ -184,6 +189,8 @@ const struct flash_info spi_nor_ids[] = {
 	{INFO("gd25lb256", 0xc86719, 0, 64 * 1024, 512,	SECT_4K |
 	SPI_NOR_QUAD_READ | SPI_NOR_HAS_LOCK | SPI_NOR_4B_OPCODES)},
 	{INFO("gd25lb512", 0xc8671A, 0, 64 * 1024, 1024,	SECT_4K |
+	SPI_NOR_QUAD_READ | SPI_NOR_HAS_LOCK | SPI_NOR_4B_OPCODES)},
+	{INFO("gd25lb512mf", 0xc8601A, 0, 64 * 1024, 1024,	SECT_4K |
 	SPI_NOR_QUAD_READ | SPI_NOR_HAS_LOCK | SPI_NOR_4B_OPCODES)},
 	{INFO("gd55lb01g", 0xc8671B, 0, 64 * 1024, 2048,	SECT_4K |
 	SPI_NOR_QUAD_READ | SPI_NOR_HAS_LOCK | SPI_NOR_4B_OPCODES)},
@@ -556,6 +563,16 @@ const struct flash_info spi_nor_ids[] = {
 	},
 	{
 		INFO("w25q02nw", 0xef8022, 0, 64 * 1024, 4096,
+		     SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
+		     SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+	},
+	{
+		INFO("w25q02jv", 0xef7022, 0, 64 * 1024, 4096,
+		     SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
+		     SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+	},
+	{
+		INFO("w25q01jvfim", 0xef7021, 0, 64 * 1024, 2048,
 		     SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
 		     SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
 	},

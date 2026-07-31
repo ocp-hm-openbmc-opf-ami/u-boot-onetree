@@ -6,9 +6,16 @@
 #include <common.h>
 #include <dm.h>
 #include <asm/io.h>
+#include <linux/bitfield.h>
+#include <power/regulator.h>
+#include <asm/arch/gfx.h>
 #include <asm/arch/gcr.h>
+#include "../common/common.h"
 
-#define SR_MII_CTRL_SWR_BIT15	15
+#define NPCM_CLK_BA	0xF0801000
+#define CLKSEL		0x4
+#define PIXCKSEL_GFX	0
+#define PIXCKSEL_MASK	GENMASK(5, 4)
 
 #define DRAM_512MB_ECC_SIZE	0x1C000000ULL
 #define DRAM_512MB_SIZE		0x20000000ULL
@@ -16,62 +23,86 @@
 #define DRAM_1GB_SIZE		0x40000000ULL
 #define DRAM_2GB_ECC_SIZE	0x70000000ULL
 #define DRAM_2GB_SIZE		0x80000000ULL
-#define DRAM_4GB_ECC_SIZE	0xE00000000ULL
+#define DRAM_4GB_ECC_SIZE	0xE0000000ULL
 #define DRAM_4GB_SIZE		0x100000000ULL
 
 DECLARE_GLOBAL_DATA_PTR;
 
 int board_init(void)
 {
+	u32 val;
+
+#ifdef CONFIG_DM_REGULATOR
+	regulators_enable_boot_on(false);
+#endif
+
+	/* Select GFX_PLL as PIXCK source */
+	val = readl(NPCM_CLK_BA + CLKSEL);
+	val &= ~PIXCKSEL_MASK;
+	val |= FIELD_PREP(PIXCKSEL_MASK, PIXCKSEL_GFX);
+	writel(val, NPCM_CLK_BA + CLKSEL);
 	return 0;
+}
+
+phys_size_t get_effective_memsize(void)
+{
+	/* Use bank0 only */
+	if (gd->ram_size > DRAM_2GB_SIZE)
+		return DRAM_2GB_SIZE;
+
+	return gd->ram_size;
 }
 
 int dram_init(void)
 {
 	struct npcm_gcr *gcr = (struct npcm_gcr *)NPCM_GCR_BA;
-	uint64_t delta = 0ULL;
 
 	/*
 	 * get dram active size value from bootblock.
 	 * Value sent using scrpad_03 register.
 	 * feature available in bootblock 0.0.6 and above.
 	 */
-
 	gd->ram_size = readl(&gcr->scrpad_c);
-	debug("%s: scrpad_c: %llx ", __func__, gd->ram_size);
 
-	if (gd->ram_size == 0) {
+	if (gd->ram_size == 0)
 		gd->ram_size = readl(&gcr->scrpad_b);
-		debug("%s: scrpad_b: %llx ", __func__, gd->ram_size);
-	} else {
+	else
 		gd->ram_size *= 0x100000ULL;
-	}
-
-	gd->bd->bi_dram[0].start = 0;
 	debug("ram_size: %llx ", gd->ram_size);
 
-	switch (gd->ram_size) {
+	return 0;
+}
+
+int dram_init_banksize(void)
+{
+	phys_size_t ram_size = gd->ram_size;
+
+	gd->bd->bi_dram[0].start = 0;
+
+#if defined(CONFIG_SYS_MEM_TOP_HIDE)
+	ram_size += CONFIG_SYS_MEM_TOP_HIDE;
+#endif
+	switch (ram_size) {
 	case DRAM_512MB_ECC_SIZE:
 	case DRAM_512MB_SIZE:
 	case DRAM_1GB_ECC_SIZE:
 	case DRAM_1GB_SIZE:
 	case DRAM_2GB_ECC_SIZE:
 	case DRAM_2GB_SIZE:
-		gd->bd->bi_dram[0].size = gd->ram_size;
+		gd->bd->bi_dram[0].size = ram_size;
 		gd->bd->bi_dram[1].start = 0;
 		gd->bd->bi_dram[1].size = 0;
 		break;
 	case DRAM_4GB_ECC_SIZE:
-		gd->bd->bi_dram[0].size = DRAM_2GB_ECC_SIZE;
+		gd->bd->bi_dram[0].size = DRAM_2GB_SIZE;
 		gd->bd->bi_dram[1].start = DRAM_4GB_SIZE;
-		gd->bd->bi_dram[1].size = DRAM_2GB_SIZE;
-		delta = DRAM_4GB_SIZE - DRAM_2GB_ECC_SIZE;
+		gd->bd->bi_dram[1].size = DRAM_2GB_SIZE -
+			(DRAM_4GB_SIZE - DRAM_4GB_ECC_SIZE);
 		break;
 	case DRAM_4GB_SIZE:
 		gd->bd->bi_dram[0].size = DRAM_2GB_SIZE;
 		gd->bd->bi_dram[1].start = DRAM_4GB_SIZE;
 		gd->bd->bi_dram[1].size = DRAM_2GB_SIZE;
-		delta = DRAM_4GB_SIZE - DRAM_2GB_SIZE;
 		break;
 	default:
 		gd->bd->bi_dram[0].size = DRAM_1GB_SIZE;
@@ -80,14 +111,26 @@ int dram_init(void)
 		break;
 	}
 
-	gd->ram_size -= delta;
+	return 0;
+}
+
+int last_stage_init(void)
+{
+	board_set_console();
 
 	return 0;
 }
 
-int dram_init_banksize(void)
+/**
+ * spi_get_env_cs : return spi chipselect based on normal boot or recovery boot
+ */
+int spi_get_env_cs(void)
 {
-	dram_init();
-
-	return 0;
+	if((readl(INTCR2) & INTCR2_WDC) == INTCR2_WDC)
+	{
+		printf("From CS%d\n", CONFIG_ENV_SPI_CS_RECOVERY);
+		return CONFIG_ENV_SPI_CS_RECOVERY;
+	}
+	printf("From CS%d\n", CONFIG_ENV_SPI_CS);
+	return CONFIG_ENV_SPI_CS;
 }

@@ -27,26 +27,11 @@ struct npcm_wdt_priv {
 static int npcm_wdt_start(struct udevice *dev, u64 timeout_ms, ulong flags)
 {
 	struct npcm_wdt_priv *priv = dev_get_priv(dev);
-	u32 time_out, val;
+	u32 val;
 
-	time_out = (u32)(timeout_ms) / 1000;
-	if (time_out < 2)
-		val = 0x800;
-	else if (time_out < 3)
-		val = 0x420;
-	else if (time_out < 6)
-		val = 0x810;
-	else if (time_out < 11)
-		val = 0x430;
-	else if (time_out < 22)
-		val = 0x820;
-	else if (time_out < 44)
-		val = 0xc00;
-	else if (time_out < 87)
-		val = 0x830;
-	else if (time_out < 173)
-		val = 0xc10;
-	else if (time_out < 688)
+	if (timeout_ms < 343552)
+		val = ((timeout_ms / 1342) << 16) + 0x800;
+	else if (timeout_ms < 688000)
 		val = 0xc20;
 	else
 		val = 0xc30;
@@ -69,15 +54,21 @@ static int npcm_wdt_stop(struct udevice *dev)
 static int npcm_wdt_reset(struct udevice *dev)
 {
 	struct npcm_wdt_priv *priv = dev_get_priv(dev);
+	u32 val;
 
-	writel(NPCM_WTR | NPCM_WTRE | NPCM_WTE, priv->regs);
+	val = readl(priv->regs);
+	writel(val | NPCM_WTR, priv->regs);
 
 	return 0;
 }
 
 static int npcm_wdt_expire_now(struct udevice *dev, ulong flags)
 {
-	return npcm_wdt_reset(dev);
+	struct npcm_wdt_priv *priv = dev_get_priv(dev);
+
+	writel(NPCM_WTR | NPCM_WTRE | NPCM_WTE, priv->regs);
+
+	return 0;
 }
 
 static int npcm_wdt_of_to_plat(struct udevice *dev)

@@ -1818,6 +1818,10 @@ config BOOTP_PXE_CLIENTARCH
 	default 0x15 if ARM
 	default 0 if X86
 
+config BOOTP_PXE_DHCP_OPTION
+	bool "Request & store 'pxe_configfile' from BOOTP/DHCP server"
+	depends on BOOTP_PXE
+
 config BOOTP_VCI_STRING
 	string
 	depends on CMD_BOOTP
@@ -2128,6 +2132,11 @@ config CMD_EXCEPTION
 	help
 	  Enable the 'exception' command which allows to raise an exception.
 
+config CMD_GFX
+	bool "Enable GFX test"
+	help
+	  Enable test commands for GFX.
+
 config CMD_LED
 	bool "led"
 	depends on LED
@@ -2400,7 +2409,7 @@ endmenu
 menu "Security commands"
 config CMD_AES
 	bool "Enable the 'aes' command"
-	select AES
+	select AES if !ARCH_NPCM
 	help
 	  This provides a means to encrypt and decrypt data using the AES
 	  (Advanced Encryption Standard). This algorithm uses a symetric key

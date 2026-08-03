@@ -18,7 +18,13 @@
 #include <search.h>
 #include <errno.h>
 #include <uuid.h>
+
+#if defined(CONFIG_ARCH_ASPEED)
 #include <asm/arch-aspeed/spi.h>
+#else
+static inline u32 aspeed_spi_abr_offset(void) { return 0; }
+#endif
+
 #include <asm/cache.h>
 #include <asm/global_data.h>
 #include <dm/device-internal.h>
